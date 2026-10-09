@@ -1,0 +1,54 @@
+name: Metin2 Unity 6 Android Demo APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-demo:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Unity source
+        uses: actions/checkout@v4
+      - name: Verify original Unity project
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f ProjectSettings/ProjectVersion.txt
+          grep -Fxq 'm_EditorVersion: 6000.6.4f1' ProjectSettings/ProjectVersion.txt
+          test -f Assets/Scenes/Bootstrap.unity
+          test -f Assets/Scripts/Frontend/Editor/AndroidBuildScript.cs
+          test -f Assets/Scripts/Frontend/DemoAppBehaviour.cs
+          test -f Assets/Scripts/Frontend/DemoWorldBehaviour.cs
+          echo 'Unity project and original Android build method found.'
+      - name: Build original Unity Android demo
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          unityVersion: 6000.6.4f1
+          customImage: unityci/editor:6000.6.4f1-android-3
+          targetPlatform: Android
+          androidExportType: androidPackage
+          versioning: None
+          buildMethod: Metin2.Frontend.EditorTools.AndroidBuildScript.BuildApk
+      - name: Verify APK output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s Builds/Metin2Demo.apk
+          ls -lh Builds/Metin2Demo.apk
+          echo 'APK created.'
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Metin2Demo-Unity-6000.6.4f1-Android
+          path: Builds/Metin2Demo.apk
+          if-no-files-found: error
+          retention-days: 7
